@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <button id="btn">url传递参数</button>
+    <script type="text/javascript">
+      var btn = document.getElementById('btn');
+      btn.addEventListener('click', function () {
+        document.location = 'hi:webview?name=abc&age=18';
+      });
+    </script>
+  </body>
+</html>
