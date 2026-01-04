@@ -18,7 +18,6 @@ const openGame = (game) => {
 <template>
   <div class="container">
     <div class="game-center">
-      <h1>游戏中心</h1>
       <div class="game-entries">
         <el-button type="warning" size="large" @click="openGame('minesweeper')">
           <span class="icon">🎮</span> 扫雷
