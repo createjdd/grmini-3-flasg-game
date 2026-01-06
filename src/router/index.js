@@ -1,6 +1,5 @@
-import { createRouter as _createRouter, createWebHistory } from 'vue-router'
-const Index = () => import('../views/index.vue')
-const Coordinate3D = () => import('../views/Coordinate3D.vue')
+import { createRouter, createWebHistory } from 'vue-router'
+import Index from '../views/index.vue'
 
 const routes = [
   {
@@ -11,25 +10,22 @@ const routes = [
   {
     path: '/coordinate-3d',
     name: 'coordinate-3d',
-    component: Coordinate3D,
+    component: () => import('../views/Coordinate3D.vue'),
+  },
+  {
+    path: '/tarot',
+    name: 'tarot',
+    component: () => import('../views/Tarot.vue'),
   },
 ]
 
-function createRouter() {
-  return _createRouter({
-    history: createWebHistory(),
-    scrollBehavior: () => ({ top: 0 }),
-    routes,
-  })
-}
-
-export const router = createRouter()
+const router = createRouter({
+  history: createWebHistory(import.meta.env.BASE_URL),
+  routes,
+})
 
 export function setupRouter(app) {
   app.use(router)
-  router.beforeResolve((to, from, next) => {
-    next()
-  })
 }
 
 export default router

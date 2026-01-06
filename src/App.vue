@@ -1,7 +1,7 @@
 <script setup></script>
 
 <template>
-  <div style="padding: 20px">
+  <div>
     <router-view />
   </div>
 </template>

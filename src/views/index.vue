@@ -1,8 +1,10 @@
 <script setup>
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import Minesweeper from '../components/Minesweeper.vue'
 import Gobang from '../components/Gobang.vue'
 
+const router = useRouter()
 const showMinesweeper = ref(false)
 const showGobang = ref(false)
 
@@ -12,6 +14,10 @@ const openGame = (game) => {
   } else if (game === 'gobang') {
     showGobang.value = true
   }
+}
+
+const goTo = (path) => {
+  router.push(path)
 }
 </script>
 
@@ -24,6 +30,10 @@ const openGame = (game) => {
         </el-button>
         <el-button type="success" size="large" @click="openGame('gobang')">
           <span class="icon">♟️</span> 五子棋
+        </el-button>
+        <el-button type="primary" size="large" @click="goTo('/tarot')"> <span class="icon">🎭</span> 塔罗牌 </el-button>
+        <el-button type="info" size="large" @click="goTo('/coordinate-3d')">
+          <span class="icon">📐</span> 3D 函数
         </el-button>
       </div>
     </div>
