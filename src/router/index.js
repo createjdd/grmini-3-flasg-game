@@ -42,6 +42,11 @@ const routes = [
     name: 'runes',
     component: () => import('../views/Runes.vue'),
   },
+  {
+    path: '/spider-solitaire',
+    name: 'spider-solitaire',
+    component: () => import('../views/SpiderSolitaire.vue'),
+  },
 ]
 
 const router = createRouter({
