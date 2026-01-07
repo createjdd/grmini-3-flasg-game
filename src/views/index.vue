@@ -3,10 +3,20 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import Minesweeper from '../components/Minesweeper.vue'
 import Gobang from '../components/Gobang.vue'
+import Game2048 from '../components/Game2048.vue'
+import Snake from '../components/Snake.vue'
+import Sudoku from '../components/Sudoku.vue'
+import Match3 from '../components/Match3.vue'
+import MemoryMatch from '../components/MemoryMatch.vue'
 
 const router = useRouter()
 const showMinesweeper = ref(false)
 const showGobang = ref(false)
+const show2048 = ref(false)
+const showSnake = ref(false)
+const showSudoku = ref(false)
+const showMatch3 = ref(false)
+const showMemory = ref(false)
 
 const goTo = (path) => {
   router.push(path)
@@ -19,6 +29,11 @@ const categories = [
     items: [
       { name: '经典扫雷', icon: '💣', action: () => (showMinesweeper.value = true), type: 'primary' },
       { name: '五子棋', icon: '⚔️', action: () => (showGobang.value = true), type: 'primary' },
+      { name: '2048', icon: '🔢', action: () => (show2048.value = true), type: 'primary' },
+      { name: '贪吃蛇', icon: '🐍', action: () => (showSnake.value = true), type: 'primary' },
+      { name: '数独', icon: '🧩', action: () => (showSudoku.value = true), type: 'primary' },
+      { name: '消消乐', icon: '🍎', action: () => (showMatch3.value = true), type: 'primary' },
+      { name: '记忆翻牌', icon: '🃏', action: () => (showMemory.value = true), type: 'primary' },
     ],
   },
   {
@@ -92,6 +107,26 @@ const categories = [
 
     <el-dialog v-model="showGobang" title="五子棋" width="850px" destroy-on-close align-center>
       <Gobang />
+    </el-dialog>
+
+    <el-dialog v-model="show2048" title="2048" width="500px" destroy-on-close align-center>
+      <Game2048 />
+    </el-dialog>
+
+    <el-dialog v-model="showSnake" title="贪吃蛇" width="500px" destroy-on-close align-center>
+      <Snake />
+    </el-dialog>
+
+    <el-dialog v-model="showSudoku" title="数独" width="600px" destroy-on-close align-center>
+      <Sudoku />
+    </el-dialog>
+
+    <el-dialog v-model="showMatch3" title="消消乐" width="550px" destroy-on-close align-center>
+      <Match3 />
+    </el-dialog>
+
+    <el-dialog v-model="showMemory" title="记忆翻牌" width="550px" destroy-on-close align-center>
+      <MemoryMatch />
     </el-dialog>
   </div>
 </template>
