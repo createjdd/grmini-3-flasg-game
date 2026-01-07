@@ -22,6 +22,11 @@ const routes = [
     name: 'points',
     component: () => import('../views/PointVisualizer.vue'),
   },
+  {
+    path: '/moon-phases',
+    name: 'moon-phases',
+    component: () => import('../views/MoonPhases.vue'),
+  },
 ]
 
 const router = createRouter({

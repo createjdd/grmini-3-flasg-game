@@ -38,6 +38,9 @@ const goTo = (path) => {
         <el-button type="success" size="large" @click="goTo('/points')">
           <span class="icon">📍</span> 点位可视化
         </el-button>
+        <el-button type="warning" size="large" @click="goTo('/moon-phases')">
+          <span class="icon">🌙</span> 月相盈亏演示
+        </el-button>
       </div>
     </div>
 
