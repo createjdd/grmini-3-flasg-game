@@ -27,6 +27,21 @@ const routes = [
     name: 'moon-phases',
     component: () => import('../views/MoonPhases.vue'),
   },
+  {
+    path: '/numerology',
+    name: 'numerology',
+    component: () => import('../views/Numerology.vue'),
+  },
+  {
+    path: '/astrology',
+    name: 'astrology',
+    component: () => import('../views/Astrology.vue'),
+  },
+  {
+    path: '/runes',
+    name: 'runes',
+    component: () => import('../views/Runes.vue'),
+  },
 ]
 
 const router = createRouter({

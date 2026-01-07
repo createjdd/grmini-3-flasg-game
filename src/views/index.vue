@@ -24,7 +24,12 @@ const categories = [
   {
     title: '神秘探索',
     icon: '🔮',
-    items: [{ name: '塔罗占卜', icon: '🃏', action: () => goTo('/tarot'), type: 'danger' }],
+    items: [
+      { name: '塔罗占卜', icon: '🃏', action: () => goTo('/tarot'), type: 'danger' },
+      { name: '生命灵数', icon: '🔢', action: () => goTo('/numerology'), type: 'danger' },
+      { name: '每日星座', icon: '✨', action: () => goTo('/astrology'), type: 'danger' },
+      { name: '卢恩符文', icon: 'ᚱ', action: () => goTo('/runes'), type: 'danger' },
+    ],
   },
   {
     title: '科学与数学',
