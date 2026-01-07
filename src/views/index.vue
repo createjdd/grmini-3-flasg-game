@@ -44,26 +44,41 @@ const categories = [
 </script>
 
 <template>
-  <div class="home-container">
-    <div class="glass-bg"></div>
+  <div
+    class="home-container h-screen w-screen relative flex items-center justify-center bg-slate-950 text-white overflow-x-hidden"
+  >
+    <div class="glass-bg" absolute inset-0 z-1 bg-gradient-to-br from-slate-900 to-black></div>
 
-    <div class="content">
-      <header class="main-header">
-        <h1 class="title">智趣空间</h1>
-        <p class="subtitle">探索游戏魅力与科学奥秘</p>
+    <div class="content" relative z-2 w-full max-w-1200px px-20px py-40px>
+      <header class="main-header" text-center mb-60px>
+        <h1 class="title" text-56px font-800 title-gradient mb-10px tracking-2px>智趣空间</h1>
+        <p class="subtitle" text-1.2rem color-slate-400 tracking-4px>探索游戏魅力与科学奥秘</p>
       </header>
 
-      <div class="categories-grid">
-        <div v-for="cat in categories" :key="cat.title" class="category-section">
-          <div class="category-header">
-            <span class="cat-icon">{{ cat.icon }}</span>
-            <h2 class="cat-title">{{ cat.title }}</h2>
+      <div class="categories-grid flex flex-row flex-wrap justify-center gap-30px">
+        <div
+          v-for="cat in categories"
+          :key="cat.title"
+          class="category-section glass-bg rounded-24px p-30px min-w-300px flex-1"
+        >
+          <div class="category-header flex items-center gap-15px mb-20px pb-15px border-b border-white-5">
+            <span class="cat-icon text-1.8rem">{{ cat.icon }}</span>
+            <h2 class="cat-title text-1.4rem font-700 text-slate-100">{{ cat.title }}</h2>
           </div>
 
-          <div class="items-list">
-            <div v-for="item in cat.items" :key="item.name" class="entry-card" :class="item.type" @click="item.action">
-              <span class="entry-icon">{{ item.icon }}</span>
-              <span class="entry-name">{{ item.name }}</span>
+          <div class="items-list grid grid-cols-1 gap-15px">
+            <div
+              v-for="item in cat.items"
+              :key="item.name"
+              class="entry-card flex items-center gap-20px p-20px bg-white-3 rounded-20px border border-white-5 transition-all duration-300 cursor-pointer active:scale-95 hover:(-translate-y-5px bg-white-8 border-white-20 shadow-xl)"
+              :class="item.type"
+              @click="item.action"
+            >
+              <span class="entry-icon text-2.5rem">{{ item.icon }}</span>
+              <div class="flex flex-col">
+                <span class="entry-name text-1.15rem font-600 text-slate-200">{{ item.name }}</span>
+                <span class="text-0.8rem text-slate-400">点击进入探索</span>
+              </div>
             </div>
           </div>
         </div>
@@ -82,134 +97,7 @@ const categories = [
 </template>
 
 <style scoped>
-.home-container {
-  min-height: 100vh;
-  width: 100vw;
-  position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: #0f172a;
-  color: white;
-  overflow-x: hidden;
-}
-
-.glass-bg {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: radial-gradient(circle at 20% 30%, #1e293b 0%, #0f172a 100%);
-  z-index: 1;
-}
-
-.content {
-  position: relative;
-  z-index: 2;
-  width: 100%;
-  max-width: 1200px;
-  padding: 40px 20px;
-}
-
-.main-header {
-  text-align: center;
-  margin-bottom: 60px;
-}
-
-.title {
-  font-size: 3.5rem;
-  font-weight: 800;
-  background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin-bottom: 10px;
-  letter-spacing: 2px;
-}
-
-.subtitle {
-  font-size: 1.2rem;
-  color: #94a3b8;
-  letter-spacing: 4px;
-}
-
-.categories-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 40px;
-}
-
-.category-section {
-  background: rgba(30, 41, 59, 0.5);
-  border-radius: 20px;
-  padding: 25px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-}
-
-.category-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 25px;
-  padding-bottom: 15px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.cat-icon {
-  font-size: 1.5rem;
-}
-
-.cat-title {
-  font-size: 1.3rem;
-  font-weight: 600;
-  color: #e2e8f0;
-}
-
-.items-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 20px;
-}
-
-.entry-card {
-  height: 120px;
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 16px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 12px;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1px solid rgba(255, 255, 256, 0.05);
-}
-
-.entry-card:hover {
-  transform: translateY(-5px);
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.2);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
-}
-
-.entry-icon {
-  font-size: 2.2rem;
-  transition: transform 0.3s ease;
-}
-
-.entry-card:hover .entry-icon {
-  transform: scale(1.1);
-}
-
-.entry-name {
-  font-size: 1.1rem;
-  font-weight: 500;
-  color: #cbd5e0;
-}
-
-/* Variants */
+/* Only keeping essential or complex styles not easily covered by atomic classes */
 .entry-card.primary:hover {
   border-color: #3b82f6;
 }
@@ -223,10 +111,11 @@ const categories = [
   border-color: #f59e0b;
 }
 
+.entry-card:hover .entry-icon {
+  transform: scale(1.1);
+}
+
 @media (max-width: 768px) {
-  .title {
-    font-size: 2.5rem;
-  }
   .items-list {
     grid-template-columns: 1fr 1fr;
   }
