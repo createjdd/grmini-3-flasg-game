@@ -1,23 +1,25 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
 
 // Constants
-const SUITS = ['♠', '♥', '♣', '♦']
 const VALUES = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
-// Simplified for now: 1 suit (Spades) x 8 decks for Easy mode standard spider layout
-// Actually standard 1 suit is 8 decks of spades. 104 cards total.
-const TOTAL_CARDS = 104
 
 const columns = ref([])
 const stock = ref([])
 const foundations = ref(0)
 const moves = ref(0)
+const difficulty = ref(1) // 1: Easy (1 suit), 2: Medium (2 suits), 4: Hard (4 suits)
+
+// Drag State
 const isDragging = ref(false)
-const draggedCard = ref(null)
-const draggedSource = ref(null) // { colIndex, cardIndex }
+const draggedStack = ref([]) // Array of card objects being dragged
+const dragStartCol = ref(-1)
+const dragStartIndex = ref(-1)
+const dragPos = ref({ x: 0, y: 0 }) // Current mouse pos
+const dragOffset = ref({ x: 0, y: 0 }) // Offset from mouse to top-left of dragged stack
 
 // Card factory
 const createCard = (suit, value, faceUp = false) => ({
@@ -29,20 +31,25 @@ const createCard = (suit, value, faceUp = false) => ({
 })
 
 const initGame = () => {
-  // Create 8 decks of Spades for "Easy" mode
   let deck = []
-  for (let i = 0; i < 8; i++) {
+
+  let suitsToUse = []
+  if (difficulty.value === 1) {
+    suitsToUse = Array(8).fill('♠')
+  } else if (difficulty.value === 2) {
+    suitsToUse = [...Array(4).fill('♠'), ...Array(4).fill('♥')]
+  } else {
+    suitsToUse = [...Array(2).fill('♠'), ...Array(2).fill('♥'), ...Array(2).fill('♣'), ...Array(2).fill('♦')]
+  }
+
+  for (let s of suitsToUse) {
     for (let v of VALUES) {
-      deck.push(createCard('♠', v, false))
+      deck.push(createCard(s, v, false))
     }
   }
 
-  // Shuffle
   deck.sort(() => Math.random() - 0.5)
 
-  // Setup columns
-  // 10 columns. First 4 have 6 cards, next 6 have 5 cards.
-  // Top card face up.
   columns.value = Array(10)
     .fill([])
     .map(() => [])
@@ -70,7 +77,6 @@ const initGame = () => {
 
 const dealRow = () => {
   if (stock.value.length === 0) return
-  // Cannot deal if any column is empty
   if (columns.value.some((col) => col.length === 0)) {
     alert('Columns cannot be empty to deal!')
     return
@@ -78,135 +84,149 @@ const dealRow = () => {
 
   for (let i = 0; i < 10; i++) {
     if (stock.value.length > 0) {
-      const card = stock.value.pop()
-      card.faceUp = true
-      columns.value[i].push(card)
+      columns.value[i].push({ ...stock.value.pop(), faceUp: true })
     }
   }
   checkFoundations()
 }
 
-// Drag functionality
-const onDragStart = (e, colIndex, cardIndex) => {
+// Custom Drag Logic
+const startDrag = (e, colIndex, cardIndex) => {
   const col = columns.value[colIndex]
   const card = col[cardIndex]
 
-  // Can only drag if face up
-  if (!card.faceUp) {
-    e.preventDefault()
-    return
-  }
+  // Validation
+  if (!card.faceUp) return
 
-  // Can only drag if all cards below are in sequence
-  // Check sequence from cardIndex to end
+  // Check sequence
   for (let i = cardIndex; i < col.length - 1; i++) {
-    if (col[i].numValue !== col[i + 1].numValue + 1) {
-      e.preventDefault()
+    const current = col[i]
+    const next = col[i + 1]
+    if (current.numValue !== next.numValue + 1 || current.suit !== next.suit) {
       return
     }
   }
 
-  draggedCard.value = col.slice(cardIndex) // Array of cards being dragged
-  draggedSource.value = { colIndex, cardIndex }
+  // Calculate offset
+  const rect = e.currentTarget.getBoundingClientRect()
+  dragOffset.value = {
+    x: e.clientX - rect.left,
+    y: e.clientY - rect.top,
+  }
+
+  // Initialize drag
   isDragging.value = true
+  dragStartCol.value = colIndex
+  dragStartIndex.value = cardIndex
+  draggedStack.value = col.slice(cardIndex)
+  dragPos.value = { x: e.clientX, y: e.clientY }
 
-  // Set drag image/effect
-  e.dataTransfer.effectAllowed = 'move'
-  // Use a transparent image or handle visual feedback
+  // Add global listeners
+  window.addEventListener('mousemove', onMouseMove)
+  window.addEventListener('mouseup', onMouseUp)
 }
 
-const onDragOver = (e) => {
-  e.preventDefault() // Allow drop
+const onMouseMove = (e) => {
+  if (!isDragging.value) return
+  dragPos.value = { x: e.clientX, y: e.clientY }
 }
 
-const onDrop = (e, targetColIndex) => {
-  e.preventDefault()
-  if (!draggedCard.value) return
+const onMouseUp = (e) => {
+  if (!isDragging.value) return
+
+  // Detect drop target
+  const elements = document.elementsFromPoint(e.clientX, e.clientY)
+  // Find a column or empty column placeholder
+  const colEl = elements.find((el) => el.dataset.colIndex !== undefined)
+
+  if (colEl) {
+    const targetColIndex = parseInt(colEl.dataset.colIndex)
+    tryDrop(targetColIndex)
+  }
+
+  // Cleanup
+  isDragging.value = false
+  draggedStack.value = []
+  dragStartCol.value = -1
+  dragStartIndex.value = -1
+  window.removeEventListener('mousemove', onMouseMove)
+  window.removeEventListener('mouseup', onMouseUp)
+}
+
+const tryDrop = (targetColIndex) => {
+  // Cannot drop on self (though logic handles it, optimization)
+  if (targetColIndex === dragStartCol.value) return
 
   const targetCol = columns.value[targetColIndex]
-  const cardsToMove = draggedCard.value
-  const sourceColIdx = draggedSource.value.colIndex
-
-  // Logic to allow drop
-  // 1. Empty column: Any card can go
-  // 2. Non-empty: Top card must be +1 of moving card base
-
-  const baseMoveCard = cardsToMove[0]
+  const baseCard = draggedStack.value[0]
 
   let valid = false
+
   if (targetCol.length === 0) {
     valid = true
   } else {
-    const targetCard = targetCol[targetCol.length - 1]
-    if (targetCard.numValue === baseMoveCard.numValue + 1) {
+    const targetTop = targetCol[targetCol.length - 1]
+    if (targetTop.numValue === baseCard.numValue + 1) {
       valid = true
     }
   }
 
   if (valid) {
-    // Execute move
-    // Remove from source
-    const sourceCol = columns.value[sourceColIdx]
-    sourceCol.splice(draggedSource.value.cardIndex, cardsToMove.length)
+    // Execute Move
+    const sourceCol = columns.value[dragStartCol.value]
 
-    // Reveal new top card in source if exists
+    // Remove from source
+    sourceCol.splice(dragStartIndex.value, draggedStack.value.length)
+
+    // Face up new top
     if (sourceCol.length > 0) {
       sourceCol[sourceCol.length - 1].faceUp = true
     }
 
     // Add to target
-    targetCol.push(...cardsToMove)
+    targetCol.push(...draggedStack.value)
+
     moves.value++
     checkFoundations()
   }
-
-  // Reset
-  draggedCard.value = null
-  draggedSource.value = null
-  isDragging.value = false
 }
 
 const checkFoundations = () => {
-  // Check all columns for A-K sequence (which is K down to A)
   for (let col of columns.value) {
     if (col.length < 13) continue
 
-    // Check end of column for K..A sequence
-    // A has numValue 1, K has 13
-    // We need 1, 2, 3... 13 at the end? specific order is K(13) -> Q(12) ... -> A(1)
+    const sequence = col.slice(col.length - 13)
+    if (sequence[sequence.length - 1].numValue !== 1) continue
 
-    // If we have a sequence from K down to A (bottom is A)
-    // We look for a run of 13 cards: K..A
-
-    // Let's implement simpler check: from end, verify 1, 2, 3...
-    let run = 1
-    for (let i = col.length - 1; i > 0; i--) {
-      if (col[i].numValue + 1 === col[i - 1].numValue && col[i].suit === col[i - 1].suit) {
-        run++
-      } else {
+    const suit = sequence[0].suit
+    let isComplete = true
+    for (let i = 0; i < 13; i++) {
+      if (sequence[i].numValue !== 13 - i || sequence[i].suit !== suit) {
+        isComplete = false
         break
       }
     }
 
-    if (run >= 13) {
-      // Must be A to K?
-      // Bottom card (col[length-1]) should be A (1)
-      if (col[col.length - 1].numValue === 1) {
-        // Found a complete set!
-        foundations.value++
-        // Remove them
-        col.splice(col.length - 13, 13)
-
-        // Flip new top if needed
-        if (col.length > 0) {
-          col[col.length - 1].faceUp = true
-        }
+    if (isComplete) {
+      foundations.value++
+      col.splice(col.length - 13, 13)
+      if (col.length > 0) {
+        col[col.length - 1].faceUp = true
       }
     }
   }
 }
 
+const setDifficulty = (diff) => {
+  difficulty.value = diff
+  initGame()
+}
+
 onMounted(initGame)
+onUnmounted(() => {
+  window.removeEventListener('mousemove', onMouseMove)
+  window.removeEventListener('mouseup', onMouseUp)
+})
 </script>
 
 <template>
@@ -215,10 +235,25 @@ onMounted(initGame)
     <div class="header h-60px bg-[#0a4521] flex items-center justify-between px-6 shadow-lg relative z-10">
       <div class="flex items-center gap-4">
         <el-button icon="Back" circle plain type="success" @click="router.push('/')" />
-        <h1 class="text-xl font-bold tracking-wide">Spider Solitaire</h1>
+        <h1 class="text-xl font-bold tracking-wide hidden md:block">Spider Solitaire</h1>
+
+        <el-dropdown @command="setDifficulty">
+          <el-button type="success" size="small" round>
+            Difficulty:
+            {{ difficulty === 1 ? 'Easy (1 Suit)' : difficulty === 2 ? 'Medium (2 Suits)' : 'Hard (4 Suits)' }}
+            <el-icon class="el-icon--right"><arrow-down /></el-icon>
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item :command="1">Easy (1 Suit)</el-dropdown-item>
+              <el-dropdown-item :command="2">Medium (2 Suits)</el-dropdown-item>
+              <el-dropdown-item :command="4">Hard (4 Suits)</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </div>
 
-      <div class="stats flex gap-8">
+      <div class="stats flex gap-4 md:gap-8">
         <div class="stat flex flex-col items-center">
           <span class="text-xs text-green-300 uppercase">Moves</span>
           <span class="font-mono font-bold text-lg">{{ moves }}</span>
@@ -230,13 +265,13 @@ onMounted(initGame)
       </div>
 
       <div class="actions">
-        <el-button type="success" plain size="small" @click="initGame">New Game</el-button>
+        <el-button type="warning" plain size="small" @click="initGame">Restart</el-button>
       </div>
     </div>
 
     <!-- Game Board -->
     <div class="board h-[calc(100vh-60px)] p-4 flex flex-col gap-4">
-      <!-- Top Area: Stock & Foundations Placeholder -->
+      <!-- Top Area -->
       <div class="top-area h-120px flex justify-between items-start px-4">
         <div class="stock-pile relative cursor-pointer" @click="dealRow">
           <div
@@ -272,49 +307,81 @@ onMounted(initGame)
       </div>
 
       <!-- Tableau Columns -->
-      <div class="tableau flex-1 flex justify-center gap-2 md:gap-4 overflow-hidden">
+      <div class="tableau flex-1 flex justify-center gap-2 md:gap-4 overflow-hidden relative">
         <div
           v-for="(col, colIndex) in columns"
           :key="colIndex"
           class="column w-80px md:w-90px relative min-h-200px"
-          @dragover="onDragOver"
-          @drop="onDrop($event, colIndex)"
+          :data-col-index="colIndex"
         >
-          <!-- Column placeholder -->
-          <div class="w-full h-110px border-2 border-white/5 rounded-lg bg-white/5 absolute top-0"></div>
+          <!-- Column placeholder for hit testing -->
+          <div class="w-full h-full absolute top-0 left-0 z-0" :data-col-index="colIndex"></div>
+          <div
+            class="w-full h-110px border-2 border-white/5 rounded-lg bg-white/5 absolute top-0 pointer-events-none"
+          ></div>
 
           <!-- Cards -->
-          <div
-            v-for="(card, cardIndex) in col"
-            :key="card.id"
-            class="card absolute w-full transition-all duration-200"
-            :style="{ top: `${cardIndex * 25}px`, zIndex: cardIndex }"
-            draggable="true"
-            @dragstart="onDragStart($event, colIndex, cardIndex)"
-          >
+          <!-- We only render cards that are NOT being dragged from this column -->
+          <template v-for="(card, cardIndex) in col" :key="card.id">
             <div
-              v-if="card.faceUp"
-              class="card-face w-full h-110px bg-slate-100 rounded-lg shadow-md border border-slate-300 flex flex-col items-center justify-between p-1 select-none hover:shadow-lg"
-              :class="card.suit === '♥' || card.suit === '♦' ? 'text-red-600' : 'text-slate-900'"
+              class="card absolute w-full transition-all duration-200"
+              :class="{ 'opacity-0': isDragging && dragStartCol === colIndex && cardIndex >= dragStartIndex }"
+              :style="{ top: `${cardIndex * (card.faceUp ? 35 : 10)}px`, zIndex: cardIndex }"
+              @mousedown="startDrag($event, colIndex, cardIndex)"
             >
-              <div class="top-l self-start text-xs font-bold leading-none flex flex-col items-center">
-                <span>{{ card.value }}</span>
-                <span>{{ card.suit }}</span>
+              <div
+                v-if="card.faceUp"
+                class="card-face w-full h-110px bg-slate-100 rounded-lg shadow-md border border-slate-300 flex flex-col items-center justify-between p-1 select-none hover:shadow-lg"
+                :class="card.suit === '♥' || card.suit === '♦' ? 'text-red-600' : 'text-slate-900'"
+              >
+                <div class="top-l self-start text-xs font-bold leading-none flex flex-col items-center">
+                  <span>{{ card.value }}</span>
+                  <span>{{ card.suit }}</span>
+                </div>
+                <div class="center text-3xl">{{ card.suit }}</div>
+                <div class="bot-r self-end text-xs font-bold leading-none flex flex-col items-center rotate-180">
+                  <span>{{ card.value }}</span>
+                  <span>{{ card.suit }}</span>
+                </div>
               </div>
-              <div class="center text-3xl">{{ card.suit }}</div>
-              <div class="bot-r self-end text-xs font-bold leading-none flex flex-col items-center rotate-180">
-                <span>{{ card.value }}</span>
-                <span>{{ card.suit }}</span>
-              </div>
-            </div>
 
-            <div
-              v-else
-              class="card-back w-full h-110px bg-blue-800 rounded-lg border border-white/50 shadow-sm flex items-center justify-center"
-            >
-              <div class="w-3/4 h-3/4 border border-white/20 rounded"></div>
+              <div
+                v-else
+                class="card-back w-full h-110px bg-blue-800 rounded-lg border border-white/50 shadow-sm flex items-center justify-center"
+              >
+                <div class="w-3/4 h-3/4 border border-white/20 rounded"></div>
+              </div>
             </div>
-          </div>
+          </template>
+        </div>
+      </div>
+    </div>
+
+    <!-- Drag Layer -->
+    <div
+      v-if="isDragging"
+      class="drag-layer fixed pointer-events-none z-50 overflow-visible"
+      :style="{
+        left: `${dragPos.x - dragOffset.x}px`,
+        top: `${dragPos.y - dragOffset.y}px`,
+        width: '80px',
+      }"
+    >
+      <div
+        v-for="(card, i) in draggedStack"
+        :key="card.id"
+        class="card-face absolute w-80px md:w-90px h-110px bg-slate-100 rounded-lg shadow-2xl border border-slate-300 flex flex-col items-center justify-between p-1 select-none"
+        :class="card.suit === '♥' || card.suit === '♦' ? 'text-red-600' : 'text-slate-900'"
+        :style="{ top: `${i * 35}px`, zIndex: 100 + i }"
+      >
+        <div class="top-l self-start text-xs font-bold leading-none flex flex-col items-center">
+          <span>{{ card.value }}</span>
+          <span>{{ card.suit }}</span>
+        </div>
+        <div class="center text-3xl">{{ card.suit }}</div>
+        <div class="bot-r self-end text-xs font-bold leading-none flex flex-col items-center rotate-180">
+          <span>{{ card.value }}</span>
+          <span>{{ card.suit }}</span>
         </div>
       </div>
     </div>
@@ -329,7 +396,13 @@ onMounted(initGame)
 </template>
 
 <style scoped>
-.card {
+.card,
+.card-face {
   touch-action: none;
 }
+/* Ensure column hit area is full height */
+.column {
+  min-height: 400px;
+}
+/* Add perspective for nice flips if we wanted, but standard is fine */
 </style>
