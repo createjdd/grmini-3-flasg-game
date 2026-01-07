@@ -35,6 +35,9 @@ const goTo = (path) => {
         <el-button type="info" size="large" @click="goTo('/coordinate-3d')">
           <span class="icon">📐</span> 3D 函数
         </el-button>
+        <el-button type="success" size="large" @click="goTo('/points')">
+          <span class="icon">📍</span> 点位可视化
+        </el-button>
       </div>
     </div>
 

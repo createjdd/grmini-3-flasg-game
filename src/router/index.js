@@ -17,6 +17,11 @@ const routes = [
     name: 'tarot',
     component: () => import('../views/Tarot.vue'),
   },
+  {
+    path: '/points',
+    name: 'points',
+    component: () => import('../views/PointVisualizer.vue'),
+  },
 ]
 
 const router = createRouter({
