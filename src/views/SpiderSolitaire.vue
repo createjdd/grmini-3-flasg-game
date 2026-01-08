@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -13,6 +13,23 @@ const foundations = ref(0)
 const moves = ref(0)
 const difficulty = ref(1) // 1: Easy (1 suit), 2: Medium (2 suits), 4: Hard (4 suits)
 
+// Help System
+const hintsUsed = ref(0)
+const hintCard = ref(null) // { colIndex, cardIndex } - the card being highlighted
+const showHint = ref(false)
+
+// Temporary Storage (3 slots)
+const tempSlots = ref([null, null, null])
+
+// Calculate max hints based on difficulty
+const maxHints = computed(() => {
+  if (difficulty.value === 1) return 3 // Easy: 3 hints
+  if (difficulty.value === 2) return 2 // Medium: 2 hints
+  return 1 // Hard: 1 hint
+})
+
+const remainingHints = computed(() => maxHints.value - hintsUsed.value)
+
 // Animation State
 const isDealing = ref(false)
 const dealingCards = ref([]) // Cards currently being animated
@@ -24,6 +41,7 @@ const isDragging = ref(false)
 const draggedStack = ref([]) // Array of card objects being dragged
 const dragStartCol = ref(-1)
 const dragStartIndex = ref(-1)
+const dragStartSlot = ref(-1) // For temp slot dragging
 const dragPos = ref({ x: 0, y: 0 }) // Current mouse pos
 const dragOffset = ref({ x: 0, y: 0 }) // Offset from mouse to top-left of dragged stack
 
@@ -54,6 +72,26 @@ const playDealSound = () => {
 
   oscillator.start(audioContext.currentTime)
   oscillator.stop(audioContext.currentTime + 0.05)
+}
+
+// Play hint sound
+const playHintSound = () => {
+  initAudio()
+  const oscillator = audioContext.createOscillator()
+  const gainNode = audioContext.createGain()
+
+  oscillator.connect(gainNode)
+  gainNode.connect(audioContext.destination)
+
+  oscillator.type = 'sine'
+  oscillator.frequency.setValueAtTime(600, audioContext.currentTime)
+  oscillator.frequency.setValueAtTime(800, audioContext.currentTime + 0.1)
+
+  gainNode.gain.setValueAtTime(0.15, audioContext.currentTime)
+  gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2)
+
+  oscillator.start(audioContext.currentTime)
+  oscillator.stop(audioContext.currentTime + 0.2)
 }
 
 // Play completion sound (fanfare)
@@ -121,6 +159,11 @@ const createCard = (suit, value, faceUp = false) => ({
 
 const initGame = () => {
   showFireworks.value = false
+  hintsUsed.value = 0
+  hintCard.value = null
+  showHint.value = false
+  tempSlots.value = [null, null, null]
+
   let deck = []
 
   let suitsToUse = []
@@ -163,6 +206,110 @@ const initGame = () => {
   stock.value = deck
   foundations.value = 0
   moves.value = 0
+}
+
+// Find possible moves
+const findPossibleMoves = () => {
+  const possibleMoves = []
+
+  // Check each column for movable sequences
+  for (let colIndex = 0; colIndex < columns.value.length; colIndex++) {
+    const col = columns.value[colIndex]
+
+    for (let cardIndex = 0; cardIndex < col.length; cardIndex++) {
+      const card = col[cardIndex]
+      if (!card.faceUp) continue
+
+      // Check if this starts a valid sequence
+      let isValidSequence = true
+      for (let i = cardIndex; i < col.length - 1; i++) {
+        const current = col[i]
+        const next = col[i + 1]
+        if (current.numValue !== next.numValue + 1 || current.suit !== next.suit) {
+          isValidSequence = false
+          break
+        }
+      }
+
+      if (!isValidSequence) continue
+
+      // Check if this sequence can be placed on another column
+      for (let targetColIndex = 0; targetColIndex < columns.value.length; targetColIndex++) {
+        if (targetColIndex === colIndex) continue
+
+        const targetCol = columns.value[targetColIndex]
+
+        // Can place on empty column (prefer not to move K to empty unless necessary)
+        if (targetCol.length === 0 && card.numValue !== 13) {
+          possibleMoves.push({
+            fromCol: colIndex,
+            fromIndex: cardIndex,
+            toCol: targetColIndex,
+            priority: 1,
+          })
+        }
+
+        // Can place on top of another card
+        if (targetCol.length > 0) {
+          const targetTop = targetCol[targetCol.length - 1]
+          if (targetTop.numValue === card.numValue + 1) {
+            // Higher priority if same suit (better for completing sets)
+            const priority = targetTop.suit === card.suit ? 10 : 5
+            possibleMoves.push({
+              fromCol: colIndex,
+              fromIndex: cardIndex,
+              toCol: targetColIndex,
+              priority,
+            })
+          }
+        }
+      }
+    }
+  }
+
+  // Sort by priority (higher is better)
+  possibleMoves.sort((a, b) => b.priority - a.priority)
+
+  return possibleMoves
+}
+
+// Use hint
+const useHint = () => {
+  if (remainingHints.value <= 0) {
+    alert('没有剩余提示次数了！')
+    return
+  }
+
+  // Clear previous hint
+  showHint.value = false
+  hintCard.value = null
+
+  const possibleMoves = findPossibleMoves()
+
+  if (possibleMoves.length === 0) {
+    // No moves available, suggest dealing
+    if (stock.value.length > 0) {
+      alert('💡 提示：没有可移动的牌，请点击左上角发牌！')
+    } else {
+      alert('💡 提示：没有可移动的牌了，游戏可能无法完成。')
+    }
+    hintsUsed.value++
+    playHintSound()
+    return
+  }
+
+  // Highlight the best move
+  const bestMove = possibleMoves[0]
+  hintCard.value = { colIndex: bestMove.fromCol, cardIndex: bestMove.fromIndex, toCol: bestMove.toCol }
+  showHint.value = true
+  hintsUsed.value++
+  playHintSound()
+
+  // Auto-hide hint after 3 seconds
+  setTimeout(() => {
+    showHint.value = false
+    hintCard.value = null
+  }, 3000)
 }
 
 // Get column element position
@@ -274,10 +421,33 @@ const startDrag = (e, colIndex, cardIndex) => {
   isDragging.value = true
   dragStartCol.value = colIndex
   dragStartIndex.value = cardIndex
+  dragStartSlot.value = -1
   draggedStack.value = col.slice(cardIndex)
   dragPos.value = { x: e.clientX, y: e.clientY }
 
   // Add global listeners
+  window.addEventListener('mousemove', onMouseMove)
+  window.addEventListener('mouseup', onMouseUp)
+}
+
+// Drag from temp slot
+const startDragFromSlot = (e, slotIndex) => {
+  const card = tempSlots.value[slotIndex]
+  if (!card) return
+
+  const rect = e.currentTarget.getBoundingClientRect()
+  dragOffset.value = {
+    x: e.clientX - rect.left,
+    y: e.clientY - rect.top,
+  }
+
+  isDragging.value = true
+  dragStartCol.value = -1
+  dragStartIndex.value = -1
+  dragStartSlot.value = slotIndex
+  draggedStack.value = [card]
+  dragPos.value = { x: e.clientX, y: e.clientY }
+
   window.addEventListener('mousemove', onMouseMove)
   window.addEventListener('mouseup', onMouseUp)
 }
@@ -292,12 +462,16 @@ const onMouseUp = (e) => {
 
   // Detect drop target
   const elements = document.elementsFromPoint(e.clientX, e.clientY)
-  // Find a column or empty column placeholder
   const colEl = elements.find((el) => el.dataset.colIndex !== undefined)
+  const slotEl = elements.find((el) => el.dataset.slotIndex !== undefined)
 
   if (colEl) {
     const targetColIndex = parseInt(colEl.dataset.colIndex)
     tryDrop(targetColIndex)
+  } else if (slotEl && draggedStack.value.length === 1) {
+    // Drop single card to temp slot
+    const slotIndex = parseInt(slotEl.dataset.slotIndex)
+    tryDropToSlot(slotIndex)
   }
 
   // Cleanup
@@ -305,13 +479,36 @@ const onMouseUp = (e) => {
   draggedStack.value = []
   dragStartCol.value = -1
   dragStartIndex.value = -1
+  dragStartSlot.value = -1
   window.removeEventListener('mousemove', onMouseMove)
   window.removeEventListener('mouseup', onMouseUp)
 }
 
+const tryDropToSlot = (slotIndex) => {
+  if (tempSlots.value[slotIndex] !== null) return // Slot occupied
+  if (draggedStack.value.length !== 1) return // Only single cards
+
+  const card = draggedStack.value[0]
+
+  if (dragStartSlot.value >= 0) {
+    // Moving from one slot to another
+    tempSlots.value[dragStartSlot.value] = null
+  } else if (dragStartCol.value >= 0) {
+    // Moving from column to slot
+    const sourceCol = columns.value[dragStartCol.value]
+    sourceCol.splice(dragStartIndex.value, 1)
+    if (sourceCol.length > 0) {
+      sourceCol[sourceCol.length - 1].faceUp = true
+    }
+  }
+
+  tempSlots.value[slotIndex] = card
+  moves.value++
+}
+
 const tryDrop = (targetColIndex) => {
   // Cannot drop on self (though logic handles it, optimization)
-  if (targetColIndex === dragStartCol.value) return
+  if (targetColIndex === dragStartCol.value && dragStartSlot.value < 0) return
 
   const targetCol = columns.value[targetColIndex]
   const baseCard = draggedStack.value[0]
@@ -328,15 +525,16 @@ const tryDrop = (targetColIndex) => {
   }
 
   if (valid) {
-    // Execute Move
-    const sourceCol = columns.value[dragStartCol.value]
-
-    // Remove from source
-    sourceCol.splice(dragStartIndex.value, draggedStack.value.length)
-
-    // Face up new top
-    if (sourceCol.length > 0) {
-      sourceCol[sourceCol.length - 1].faceUp = true
+    if (dragStartSlot.value >= 0) {
+      // Coming from temp slot
+      tempSlots.value[dragStartSlot.value] = null
+    } else {
+      // Coming from column
+      const sourceCol = columns.value[dragStartCol.value]
+      sourceCol.splice(dragStartIndex.value, draggedStack.value.length)
+      if (sourceCol.length > 0) {
+        sourceCol[sourceCol.length - 1].faceUp = true
+      }
     }
 
     // Add to target
@@ -576,7 +774,10 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <div class="actions">
+      <div class="actions flex gap-2">
+        <el-button size="small" @click="useHint" class="vintage-btn-hint" :disabled="remainingHints <= 0">
+          💡 提示 ({{ remainingHints }})
+        </el-button>
         <el-button size="small" @click="initGame" class="vintage-btn-warning">🔄 Restart</el-button>
       </div>
     </div>
@@ -644,13 +845,17 @@ onUnmounted(() => {
           <div class="w-full h-full absolute top-0 left-0 z-0" :data-col-index="colIndex"></div>
           <div
             class="w-full h-110px border-2 border-amber-900/20 rounded-lg bg-amber-950/15 absolute top-0 pointer-events-none column-slot"
+            :class="{ 'hint-target': showHint && hintCard && hintCard.toCol === colIndex }"
           ></div>
 
           <!-- Cards -->
           <template v-for="(card, cardIndex) in col" :key="card.id">
             <div
               class="card absolute w-full transition-all duration-200"
-              :class="{ 'opacity-0': isDragging && dragStartCol === colIndex && cardIndex >= dragStartIndex }"
+              :class="{
+                'opacity-0': isDragging && dragStartCol === colIndex && cardIndex >= dragStartIndex,
+                'hint-card': showHint && hintCard && hintCard.colIndex === colIndex && cardIndex >= hintCard.cardIndex,
+              }"
               :style="{ top: `${getCardTop(colIndex, cardIndex)}px`, zIndex: cardIndex }"
               @mousedown="startDrag($event, colIndex, cardIndex)"
             >
@@ -679,6 +884,37 @@ onUnmounted(() => {
               </div>
             </div>
           </template>
+        </div>
+      </div>
+
+      <!-- Temporary Storage Area (Bottom Left) -->
+      <div class="temp-storage absolute bottom-4 left-4 flex gap-2">
+        <div class="temp-label text-amber-400 text-xs uppercase tracking-wider mr-2 flex items-center">临时存放</div>
+        <div
+          v-for="(slot, slotIndex) in tempSlots"
+          :key="slotIndex"
+          class="temp-slot w-70px h-100px border-2 rounded-lg flex items-center justify-center cursor-pointer transition-all duration-200"
+          :class="slot ? 'border-amber-500' : 'border-amber-900/30 bg-amber-950/30'"
+          :data-slot-index="slotIndex"
+          @mousedown="slot ? startDragFromSlot($event, slotIndex) : null"
+        >
+          <template v-if="slot">
+            <div
+              class="card-face-vintage w-full h-full rounded-lg shadow-md flex flex-col items-center justify-between p-1 select-none"
+              :class="slot.suit === '♥' || slot.suit === '♦' ? 'card-red' : 'card-black'"
+            >
+              <div class="top-l self-start text-xs font-bold leading-none flex flex-col items-center">
+                <span>{{ slot.value }}</span>
+                <span>{{ slot.suit }}</span>
+              </div>
+              <div class="center text-2xl">{{ slot.suit }}</div>
+              <div class="bot-r self-end text-xs font-bold leading-none flex flex-col items-center rotate-180">
+                <span>{{ slot.value }}</span>
+                <span>{{ slot.suit }}</span>
+              </div>
+            </div>
+          </template>
+          <span v-else class="text-amber-800/30 text-lg">{{ slotIndex + 1 }}</span>
         </div>
       </div>
     </div>
@@ -849,6 +1085,24 @@ onUnmounted(() => {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 2px 4px rgba(0, 0, 0, 0.3) !important;
 }
 
+.vintage-btn-hint {
+  background: linear-gradient(180deg, #7986cb 0%, #5c6bc0 100%) !important;
+  border: 2px solid #3949ab !important;
+  color: #fff !important;
+  font-weight: bold !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+}
+
+.vintage-btn-hint:hover {
+  background: linear-gradient(180deg, #9fa8da 0%, #7986cb 100%) !important;
+}
+
+.vintage-btn-hint:disabled {
+  background: linear-gradient(180deg, #9e9e9e 0%, #757575 100%) !important;
+  border-color: #616161 !important;
+  cursor: not-allowed;
+}
+
 /* 牌堆卡片背面 */
 .stock-card {
   background: linear-gradient(135deg, #7b1fa2 0%, #4a148c 50%, #7b1fa2 100%);
@@ -933,6 +1187,51 @@ onUnmounted(() => {
   background: linear-gradient(135deg, #7b1fa2 0%, #4a148c 50%, #7b1fa2 100%);
   border: 2px solid #ffd54f;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3), inset 0 0 15px rgba(0, 0, 0, 0.3);
+}
+
+/* 提示动画 */
+.hint-card {
+  animation: hint-pulse 0.5s ease-in-out infinite alternate;
+}
+
+.hint-target {
+  animation: hint-target-pulse 0.5s ease-in-out infinite alternate;
+  border-color: #4caf50 !important;
+  background: rgba(76, 175, 80, 0.3) !important;
+}
+
+@keyframes hint-pulse {
+  0% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  100% {
+    transform: scale(1.02);
+    filter: brightness(1.2);
+    box-shadow: 0 0 20px rgba(255, 235, 59, 0.6);
+  }
+}
+
+@keyframes hint-target-pulse {
+  0% {
+    box-shadow: inset 0 0 10px rgba(76, 175, 80, 0.3);
+  }
+  100% {
+    box-shadow: inset 0 0 20px rgba(76, 175, 80, 0.6), 0 0 15px rgba(76, 175, 80, 0.4);
+  }
+}
+
+/* 临时存放区 */
+.temp-storage {
+  z-index: 20;
+}
+
+.temp-slot {
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.temp-slot:hover {
+  border-color: rgba(255, 193, 7, 0.5);
 }
 
 /* 发牌动画 */
