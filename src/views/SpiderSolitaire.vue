@@ -538,18 +538,23 @@ const onMouseMove = (e) => {
 const onMouseUp = (e) => {
   if (!isDragging.value) return
 
-  // Detect drop target
+  // Detect drop target - 优先检测临时存放区
   const elements = document.elementsFromPoint(e.clientX, e.clientY)
-  const colEl = elements.find((el) => el.dataset.colIndex !== undefined)
-  const slotEl = elements.find((el) => el.dataset.slotIndex !== undefined)
 
-  if (colEl) {
-    const targetColIndex = parseInt(colEl.dataset.colIndex)
-    tryDrop(targetColIndex)
-  } else if (slotEl && draggedStack.value.length === 1) {
+  // 先检查是否在临时存放区 (只允许单张牌)
+  const slotEl = elements.find((el) => el.dataset && el.dataset.slotIndex !== undefined)
+
+  if (slotEl && draggedStack.value.length === 1) {
     // Drop single card to temp slot
     const slotIndex = parseInt(slotEl.dataset.slotIndex)
     tryDropToSlot(slotIndex)
+  } else {
+    // 再检查是否在列上
+    const colEl = elements.find((el) => el.dataset && el.dataset.colIndex !== undefined)
+    if (colEl) {
+      const targetColIndex = parseInt(colEl.dataset.colIndex)
+      tryDrop(targetColIndex)
+    }
   }
 
   // Cleanup
@@ -972,33 +977,42 @@ onUnmounted(() => {
       </div>
 
       <!-- Temporary Storage Area (Bottom Left) -->
-      <div class="temp-storage absolute bottom-4 left-4 flex gap-2">
+      <div class="temp-storage absolute bottom-4 left-4 flex gap-3">
         <div class="temp-label text-amber-400 text-xs uppercase tracking-wider mr-2 flex items-center">临时存放</div>
         <div
           v-for="(slot, slotIndex) in tempSlots"
           :key="slotIndex"
-          class="temp-slot w-70px h-100px border-2 rounded-lg flex items-center justify-center cursor-pointer transition-all duration-200"
-          :class="slot ? 'border-amber-500' : 'border-amber-900/30 bg-amber-950/30'"
+          class="temp-slot-wrapper relative cursor-pointer"
           :data-slot-index="slotIndex"
           @mousedown="slot ? startDragFromSlot($event, slotIndex) : null"
         >
-          <template v-if="slot">
-            <div
-              class="card-face-vintage w-full h-full rounded-lg shadow-md flex flex-col items-center justify-between p-1 select-none"
-              :class="slot.suit === '♥' || slot.suit === '♦' ? 'card-red' : 'card-black'"
-            >
-              <div class="top-l self-start text-xs font-bold leading-none flex flex-col items-center">
-                <span>{{ slot.value }}</span>
-                <span>{{ slot.suit }}</span>
+          <div
+            class="temp-slot w-85px h-115px border-2 rounded-lg flex items-center justify-center transition-all duration-200 relative"
+            :class="
+              slot ? 'border-amber-500 border-3' : 'border-amber-900/40 bg-amber-950/30 hover:border-amber-700/60'
+            "
+            :data-slot-index="slotIndex"
+          >
+            <template v-if="slot">
+              <div
+                class="card-face-vintage w-full h-full rounded-lg shadow-md flex flex-col items-center justify-between p-1 select-none"
+                :class="slot.suit === '♥' || slot.suit === '♦' ? 'card-red' : 'card-black'"
+              >
+                <div class="top-l self-start text-xs font-bold leading-none flex flex-col items-center">
+                  <span>{{ slot.value }}</span>
+                  <span>{{ slot.suit }}</span>
+                </div>
+                <div class="center text-2xl">{{ slot.suit }}</div>
+                <div class="bot-r self-end text-xs font-bold leading-none flex flex-col items-center rotate-180">
+                  <span>{{ slot.value }}</span>
+                  <span>{{ slot.suit }}</span>
+                </div>
               </div>
-              <div class="center text-2xl">{{ slot.suit }}</div>
-              <div class="bot-r self-end text-xs font-bold leading-none flex flex-col items-center rotate-180">
-                <span>{{ slot.value }}</span>
-                <span>{{ slot.suit }}</span>
-              </div>
-            </div>
-          </template>
-          <span v-else class="text-amber-800/30 text-lg">{{ slotIndex + 1 }}</span>
+            </template>
+            <span v-else class="text-amber-700/50 text-lg font-bold">{{ slotIndex + 1 }}</span>
+          </div>
+          <!-- 扩大的拖放检测区域 -->
+          <div class="absolute -inset-2" :data-slot-index="slotIndex"></div>
         </div>
       </div>
     </div>
