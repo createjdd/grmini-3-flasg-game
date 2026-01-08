@@ -996,7 +996,10 @@ onUnmounted(() => {
             <template v-if="slot">
               <div
                 class="card-face-vintage w-full h-full rounded-lg shadow-md flex flex-col items-center justify-between p-1 select-none"
-                :class="slot.suit === '♥' || slot.suit === '♦' ? 'card-red' : 'card-black'"
+                :class="[
+                  slot.suit === '♥' || slot.suit === '♦' ? 'card-red' : 'card-black',
+                  { 'opacity-0': isDragging && dragStartSlot === slotIndex },
+                ]"
               >
                 <div class="top-l self-start text-xs font-bold leading-none flex flex-col items-center">
                   <span>{{ slot.value }}</span>
