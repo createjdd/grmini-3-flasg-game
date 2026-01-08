@@ -13,6 +13,10 @@ const foundations = ref(0)
 const moves = ref(0)
 const difficulty = ref(1) // 1: Easy (1 suit), 2: Medium (2 suits), 4: Hard (4 suits)
 
+// Save/Resume State
+const showResumeDialog = ref(false)
+const STORAGE_KEY = 'spider_solitaire_save'
+
 // Help System
 const hintsUsed = ref(0)
 const hintCard = ref(null) // { colIndex, cardIndex } - the card being highlighted
@@ -206,6 +210,80 @@ const initGame = () => {
   stock.value = deck
   foundations.value = 0
   moves.value = 0
+
+  // Clear saved game when starting new
+  clearSavedGame()
+}
+
+// Save game state to localStorage
+const saveGame = () => {
+  const gameState = {
+    columns: columns.value,
+    stock: stock.value,
+    foundations: foundations.value,
+    moves: moves.value,
+    difficulty: difficulty.value,
+    hintsUsed: hintsUsed.value,
+    tempSlots: tempSlots.value,
+    savedAt: new Date().toISOString(),
+  }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(gameState))
+}
+
+// Load game state from localStorage
+const loadGame = () => {
+  const saved = localStorage.getItem(STORAGE_KEY)
+  if (!saved) return false
+
+  try {
+    const gameState = JSON.parse(saved)
+    columns.value = gameState.columns
+    stock.value = gameState.stock
+    foundations.value = gameState.foundations
+    moves.value = gameState.moves
+    difficulty.value = gameState.difficulty
+    hintsUsed.value = gameState.hintsUsed || 0
+    tempSlots.value = gameState.tempSlots || [null, null, null]
+    showFireworks.value = false
+    hintCard.value = null
+    showHint.value = false
+    return true
+  } catch (e) {
+    console.error('Failed to load game:', e)
+    return false
+  }
+}
+
+// Check if there's a saved game
+const hasSavedGame = () => {
+  return localStorage.getItem(STORAGE_KEY) !== null
+}
+
+// Clear saved game
+const clearSavedGame = () => {
+  localStorage.removeItem(STORAGE_KEY)
+}
+
+// Resume saved game
+const resumeGame = () => {
+  loadGame()
+  showResumeDialog.value = false
+}
+
+// Start new game (decline resume)
+const startNewGame = () => {
+  clearSavedGame()
+  showResumeDialog.value = false
+  initGame()
+}
+
+// Save game before leaving
+const handleBack = () => {
+  // Only save if game is in progress (not won)
+  if (foundations.value < 8 && (columns.value.some((col) => col.length > 0) || stock.value.length > 0)) {
+    saveGame()
+  }
+  router.push('/')
 }
 
 // Find possible moves
@@ -722,7 +800,13 @@ watch(showFireworks, (val) => {
   }
 })
 
-onMounted(initGame)
+onMounted(() => {
+  if (hasSavedGame()) {
+    showResumeDialog.value = true
+  } else {
+    initGame()
+  }
+})
 onUnmounted(() => {
   window.removeEventListener('mousemove', onMouseMove)
   window.removeEventListener('mouseup', onMouseUp)
@@ -739,7 +823,7 @@ onUnmounted(() => {
     <!-- Header -->
     <div class="header h-60px flex items-center justify-between px-6 shadow-lg relative z-10 header-wood">
       <div class="flex items-center gap-4">
-        <el-button icon="Back" circle @click="router.push('/')" class="vintage-btn" />
+        <el-button icon="Back" circle @click="handleBack" class="vintage-btn" />
         <h1
           class="text-xl font-bold tracking-wide hidden md:block text-amber-200 drop-shadow-md"
           style="font-family: 'Georgia', serif"
@@ -1021,6 +1105,29 @@ onUnmounted(() => {
         <el-button size="large" round @click="initGame" class="vintage-btn-warning text-lg">🔄 Play Again</el-button>
       </div>
     </div>
+
+    <!-- Resume Game Dialog -->
+    <el-dialog
+      v-model="showResumeDialog"
+      title="🕷️ 发现未完成的游戏"
+      width="400px"
+      :close-on-click-modal="false"
+      :close-on-press-escape="false"
+      :show-close="false"
+      center
+      class="resume-dialog"
+    >
+      <div class="text-center py-4">
+        <p class="text-lg mb-2">您有一个未完成的蜘蛛纸牌游戏</p>
+        <p class="text-gray-500">是否继续上次的游戏？</p>
+      </div>
+      <template #footer>
+        <div class="flex justify-center gap-4">
+          <el-button @click="startNewGame" size="large">🔄 重新开始</el-button>
+          <el-button type="primary" @click="resumeGame" size="large">▶️ 继续游戏</el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
