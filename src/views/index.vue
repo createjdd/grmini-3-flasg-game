@@ -27,6 +27,7 @@ const categories = [
     title: '休闲板块',
     icon: '🎮',
     items: [
+      { name: '蜘蛛纸牌', icon: '🕷️', action: () => goTo('/spider-solitaire'), type: 'primary' },
       { name: '经典扫雷', icon: '💣', action: () => (showMinesweeper.value = true), type: 'primary' },
       { name: '五子棋', icon: '⚔️', action: () => (showGobang.value = true), type: 'primary' },
       { name: '2048', icon: '🔢', action: () => (show2048.value = true), type: 'primary' },
@@ -34,7 +35,6 @@ const categories = [
       { name: '数独', icon: '🧩', action: () => (showSudoku.value = true), type: 'primary' },
       { name: '消消乐', icon: '🍎', action: () => (showMatch3.value = true), type: 'primary' },
       { name: '记忆翻牌', icon: '🃏', action: () => (showMemory.value = true), type: 'primary' },
-      { name: '蜘蛛纸牌', icon: '🕷️', action: () => goTo('/spider-solitaire'), type: 'primary' },
     ],
   },
   {
