@@ -25,6 +25,16 @@ const goTo = (path) => {
 const projects = [
   // 休闲游戏类
   {
+    id: 'fps-game',
+    name: '第一人称射击',
+    icon: '🔫',
+    description: '3D FPS游戏，体验真实的射击战斗',
+    category: '休闲游戏',
+    categoryColor: 'from-blue-500 to-cyan-500',
+    action: () => goTo('/fps-game'),
+    featured: true,
+  },
+  {
     id: 'spider-solitaire',
     name: '蜘蛛纸牌',
     icon: '🕷️',

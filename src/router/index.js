@@ -47,6 +47,11 @@ const routes = [
     name: 'spider-solitaire',
     component: () => import('../views/SpiderSolitaire.vue'),
   },
+  {
+    path: '/fps-game',
+    name: 'fps-game',
+    component: () => import('../views/FPSGame.vue'),
+  },
 ]
 
 const router = createRouter({
