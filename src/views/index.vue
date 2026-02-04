@@ -197,6 +197,17 @@ const projects = [
     action: () => goTo('/rupiah-cepat'),
     featured: false,
   },
+  // 开发工具类
+  {
+    id: 'vueuse-demo',
+    name: 'VueUse 示例',
+    icon: '🛠️',
+    description: 'VueUse 常用 API 使用示例和演示',
+    category: '开发工具',
+    categoryColor: 'from-purple-500 to-pink-500',
+    action: () => goTo('/vueuse-demo'),
+    featured: true,
+  },
 ]
 
 const featuredProjects = computed(() => projects.filter(p => p.featured))

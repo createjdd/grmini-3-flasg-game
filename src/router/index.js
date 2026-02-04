@@ -57,6 +57,11 @@ const routes = [
     name: 'rupiah-cepat',
     component: () => import('../views/RupiahCepat.vue'),
   },
+  {
+    path: '/vueuse-demo',
+    name: 'vueuse-demo',
+    component: () => import('../views/VueUseDemo.vue'),
+  },
 ]
 
 const router = createRouter({
