@@ -52,6 +52,11 @@ const routes = [
     name: 'fps-game',
     component: () => import('../views/FPSGame.vue'),
   },
+  {
+    path: '/rupiah-cepat',
+    name: 'rupiah-cepat',
+    component: () => import('../views/RupiahCepat.vue'),
+  },
 ]
 
 const router = createRouter({

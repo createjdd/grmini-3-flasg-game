@@ -186,6 +186,17 @@ const projects = [
     action: () => goTo('/moon-phases'),
     featured: false,
   },
+  // UI设计类
+  {
+    id: 'rupiah-cepat',
+    name: 'RupiahCepat UI',
+    icon: '💳',
+    description: '移动端登录注册页面UI还原',
+    category: 'UI设计',
+    categoryColor: 'from-blue-500 to-indigo-500',
+    action: () => goTo('/rupiah-cepat'),
+    featured: false,
+  },
 ]
 
 const featuredProjects = computed(() => projects.filter(p => p.featured))
